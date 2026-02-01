@@ -80,7 +80,7 @@
         </div>
 
         <!-- Loading -->
-        <div id="loading" class="loading">
+        <div id="loading" class="loading" style="display: none;">
             <div class="spinner"></div>
             <p>Carregando tarefas...</p>
         </div>
@@ -88,12 +88,12 @@
         <!-- Status Bar -->
         <div class="status-bar">
             <div class="status-item">
-                <i class="fas fa-server"></i>
-                <span id="api-status">Conectando...</span>
+                <i class="fas fa-globe"></i>
+                <span id="api-status">🌐 MODO WEB</span>
             </div>
             <div class="status-item">
                 <i class="fas fa-robot"></i>
-                <span id="auto-exec-status">Aguardando...</span>
+                <span id="auto-exec-status">Bezim monitora pelo heartbeat</span>
             </div>
             <div class="status-item">
                 <i class="fas fa-clock"></i>
@@ -130,13 +130,14 @@
                     </div>
                     <div class="form-group">
                         <label>
-                            <input type="checkbox" id="task-auto-exec"> Auto-execução
+                            <input type="checkbox" id="task-auto-exec"> Para Bezim executar
                         </label>
                     </div>
                 </div>
                 <div class="form-group" id="exec-command-group" style="display: none;">
-                    <label for="exec-command">Comando de execução</label>
+                    <label for="exec-command">Comando para Bezim</label>
                     <input type="text" id="exec-command" placeholder="Ex: pesquisar: termo, exec: comando, notify: mensagem">
+                    <small>O Bezim vai executar isso automaticamente via heartbeat</small>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>

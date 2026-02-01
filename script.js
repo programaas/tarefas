@@ -1,12 +1,39 @@
-// API Configuration
-const API_BASE_URL = 'http://localhost:3001/api';
-let tasks = [];
+// DEMO VERSION - Works with localStorage instead of API
+let tasks = JSON.parse(localStorage.getItem('tasks')) || [
+    {
+        id: 'demo-1',
+        title: '📧 Enviar relatório mensal',
+        description: 'Compilar e enviar o relatório de progresso mensal',
+        status: 'TODO',
+        priority: 100,
+        urgent: true,
+        important: true,
+        autoExecutable: false,
+        createdAt: new Date().toISOString(),
+        assignee: 'Diego'
+    },
+    {
+        id: 'demo-2', 
+        title: '🔍 Pesquisar Node.js',
+        description: 'Pesquisar melhores práticas de performance',
+        status: 'DONE',
+        priority: 75,
+        urgent: false,
+        important: true,
+        autoExecutable: true,
+        executionCommand: 'pesquisar: Node.js performance',
+        createdAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        assignee: 'Diego'
+    }
+];
+
 let currentEditingTask = null;
 
 // DOM Elements
 const elements = {
     todoTasks: document.getElementById('todo-tasks'),
-    doingTasks: document.getElementById('doing-tasks'),
+    doingTasks: document.getElementById('doing-tasks'), 
     doneTasks: document.getElementById('done-tasks'),
     todoCount: document.getElementById('todo-count'),
     doingCount: document.getElementById('doing-count'),
@@ -33,21 +60,24 @@ const elements = {
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
     setupEventListeners();
-    loadTasks();
-    
-    // Auto-refresh every 30 seconds
-    setInterval(loadTasks, 30000);
+    renderTasks();
+    updateStats();
+    updateStatus('🌐 DEMO MODE', 'Simulação ativa');
+    updateLastUpdate();
 });
 
 function initializeApp() {
-    console.log('🎯 Sistema de Tarefas - Inicializado');
-    updateStatus('Conectando...', 'Aguardando...');
+    console.log('🎯 Sistema de Tarefas DEMO - Inicializado');
+    showLoading(false);
 }
 
 function setupEventListeners() {
-    // Modal events
     elements.addTaskBtn.addEventListener('click', () => openTaskModal());
-    elements.refreshBtn.addEventListener('click', loadTasks);
+    elements.refreshBtn.addEventListener('click', () => {
+        renderTasks();
+        updateStats();
+        showToast('🔄 Atualizado!', 'success');
+    });
     elements.historyBtn.addEventListener('click', openHistoryModal);
     elements.taskForm.addEventListener('submit', handleTaskSubmit);
     elements.taskAutoExec.addEventListener('change', toggleExecCommandGroup);
@@ -63,87 +93,48 @@ function setupEventListeners() {
     });
 }
 
-// API Functions
-async function apiRequest(endpoint, options = {}) {
-    try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            },
-            ...options
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        return await response.json();
-    } catch (error) {
-        console.error('API Error:', error);
-        showToast(`Erro na API: ${error.message}`, 'error');
-        throw error;
-    }
+function saveTasks() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
 }
 
-async function loadTasks() {
-    try {
-        showLoading(true);
-        tasks = await apiRequest('/tasks');
+function createTask(taskData) {
+    const newTask = {
+        id: 'task-' + Date.now(),
+        ...taskData,
+        status: 'TODO',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+    
+    tasks.push(newTask);
+    saveTasks();
+    showToast('✅ Tarefa criada com sucesso!', 'success');
+    renderTasks();
+    updateStats();
+    return newTask;
+}
+
+function updateTask(taskId, updates) {
+    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    if (taskIndex !== -1) {
+        tasks[taskIndex] = {
+            ...tasks[taskIndex],
+            ...updates,
+            updatedAt: new Date().toISOString()
+        };
+        saveTasks();
         renderTasks();
         updateStats();
-        updateStatus('✅ Conectado', `${getAutoExecCount()} tarefas auto-exec`);
-        updateLastUpdate();
-        showLoading(false);
-    } catch (error) {
-        updateStatus('❌ Erro', 'Offline');
-        showLoading(false);
+        return tasks[taskIndex];
     }
 }
 
-async function createTask(taskData) {
-    try {
-        const newTask = await apiRequest('/tasks', {
-            method: 'POST',
-            body: JSON.stringify(taskData)
-        });
-        
-        showToast('✅ Tarefa criada com sucesso!', 'success');
-        await loadTasks();
-        return newTask;
-    } catch (error) {
-        showToast('❌ Erro ao criar tarefa', 'error');
-        throw error;
-    }
-}
-
-async function updateTask(taskId, updates) {
-    try {
-        const updatedTask = await apiRequest(`/tasks/${taskId}`, {
-            method: 'PUT',
-            body: JSON.stringify(updates)
-        });
-        
-        await loadTasks();
-        return updatedTask;
-    } catch (error) {
-        showToast('❌ Erro ao atualizar tarefa', 'error');
-        throw error;
-    }
-}
-
-async function deleteTask(taskId) {
-    try {
-        await apiRequest(`/tasks/${taskId}`, {
-            method: 'DELETE'
-        });
-        
-        showToast('🗑️ Tarefa removida', 'success');
-        await loadTasks();
-    } catch (error) {
-        showToast('❌ Erro ao remover tarefa', 'error');
-        throw error;
-    }
+function deleteTask(taskId) {
+    tasks = tasks.filter(t => t.id !== taskId);
+    saveTasks();
+    showToast('🗑️ Tarefa removida', 'success');
+    renderTasks();
+    updateStats();
 }
 
 // Render Functions
@@ -223,13 +214,15 @@ function updateStats() {
     elements.todoBadge.textContent = todoCount;
     elements.doingBadge.textContent = doingCount;
     elements.doneBadge.textContent = doneCount;
+    
+    updateLastUpdate();
 }
 
 function getAutoExecCount() {
     return tasks.filter(t => t.autoExecutable && t.status !== 'DONE').length;
 }
 
-// Modal Functions
+// Modal Functions  
 function openTaskModal(task = null) {
     currentEditingTask = task;
     const isEditing = !!task;
@@ -262,10 +255,9 @@ function toggleExecCommandGroup() {
     elements.execCommandGroup.style.display = isAutoExec ? 'block' : 'none';
 }
 
-async function handleTaskSubmit(event) {
+function handleTaskSubmit(event) {
     event.preventDefault();
     
-    const formData = new FormData(event.target);
     const taskData = {
         title: document.getElementById('task-title').value.trim(),
         description: document.getElementById('task-desc').value.trim(),
@@ -283,21 +275,17 @@ async function handleTaskSubmit(event) {
         return;
     }
     
-    try {
-        if (currentEditingTask) {
-            await updateTask(currentEditingTask.id, taskData);
-            showToast('✅ Tarefa atualizada!', 'success');
-        } else {
-            await createTask(taskData);
-        }
-        closeModal();
-    } catch (error) {
-        console.error('Error submitting task:', error);
+    if (currentEditingTask) {
+        updateTask(currentEditingTask.id, taskData);
+        showToast('✅ Tarefa atualizada!', 'success');
+    } else {
+        createTask(taskData);
     }
+    closeModal();
 }
 
 // Task Actions
-async function editTask(taskId) {
+function editTask(taskId) {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
         openTaskModal(task);
@@ -334,7 +322,7 @@ function allowDrop(event) {
     event.currentTarget.classList.add('drag-over');
 }
 
-async function drop(event) {
+function drop(event) {
     event.preventDefault();
     event.currentTarget.classList.remove('drag-over');
     
@@ -353,22 +341,17 @@ async function drop(event) {
             updates.completedAt = new Date().toISOString();
         }
         
-        await updateTask(taskId, updates);
+        updateTask(taskId, updates);
         showToast(`📝 Tarefa movida para ${newStatus}`, 'success');
     }
 }
 
 // History Functions
-async function openHistoryModal() {
+function openHistoryModal() {
     elements.historyModal.style.display = 'block';
     
-    try {
-        const history = await apiRequest('/history');
-        renderHistory(history);
-    } catch (error) {
-        document.getElementById('history-content').innerHTML = 
-            '<div class="loading">❌ Erro ao carregar histórico</div>';
-    }
+    const history = tasks.filter(t => t.status === 'DONE');
+    renderHistory(history);
 }
 
 function closeHistoryModal() {
@@ -378,12 +361,13 @@ function closeHistoryModal() {
 function renderHistory(history) {
     if (!history.length) {
         document.getElementById('history-content').innerHTML = 
-            '<div class="loading">📋 Nenhuma tarefa no histórico</div>';
+            '<div class="loading">📋 Nenhuma tarefa concluída ainda</div>';
         return;
     }
     
     const historyHTML = history.map(task => {
-        const completedDate = new Date(task.completedAt).toLocaleDateString('pt-BR');
+        const completedDate = task.completedAt ? 
+            new Date(task.completedAt).toLocaleDateString('pt-BR') : 'Data não disponível';
         const priority = getPriorityLabel(task.priority);
         const priorityClass = getPriorityClass(task.priority);
         const autoExecBadge = task.autoExecutable ? 
