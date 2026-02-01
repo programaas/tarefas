@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Tarefas - Diego</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-tasks"></i> Sistema de Tarefas</h1>
+                <div class="header-actions">
+                    <button id="add-task-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Nova Tarefa
+                    </button>
+                    <button id="refresh-btn" class="btn btn-secondary">
+                        <i class="fas fa-sync"></i> Atualizar
+                    </button>
+                    <button id="history-btn" class="btn btn-secondary">
+                        <i class="fas fa-history"></i> Histórico
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="todo-count">0</div>
+                <div class="stat-label">Pendentes</div>
+                <i class="fas fa-clock stat-icon"></i>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="doing-count">0</div>
+                <div class="stat-label">Em Progresso</div>
+                <i class="fas fa-play-circle stat-icon"></i>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="done-count">0</div>
+                <div class="stat-label">Concluídas</div>
+                <i class="fas fa-check-circle stat-icon"></i>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="auto-count">0</div>
+                <div class="stat-label">Auto-Exec</div>
+                <i class="fas fa-robot stat-icon"></i>
+            </div>
+        </div>
+
+        <!-- Kanban Board -->
+        <div class="board">
+            <div class="column todo-column">
+                <div class="column-header">
+                    <h2><i class="fas fa-clock"></i> TODO</h2>
+                    <span class="task-count" id="todo-badge">0</span>
+                </div>
+                <div class="task-list" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" data-status="TODO"></div>
+            </div>
+
+            <div class="column doing-column">
+                <div class="column-header">
+                    <h2><i class="fas fa-play-circle"></i> EM PROGRESSO</h2>
+                    <span class="task-count" id="doing-badge">0</span>
+                </div>
+                <div class="task-list" id="doing-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" data-status="DOING"></div>
+            </div>
+
+            <div class="column done-column">
+                <div class="column-header">
+                    <h2><i class="fas fa-check-circle"></i> CONCLUÍDO</h2>
+                    <span class="task-count" id="done-badge">0</span>
+                </div>
+                <div class="task-list" id="done-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" data-status="DONE"></div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Carregando tarefas...</p>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <i class="fas fa-server"></i>
+                <span id="api-status">Conectando...</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-robot"></i>
+                <span id="auto-exec-status">Aguardando...</span>
+            </div>
+            <div class="status-item">
+                <i class="fas fa-clock"></i>
+                <span id="last-update">--:--</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="task-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Nova Tarefa</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <form id="task-form">
+                <div class="form-group">
+                    <label for="task-title">Título *</label>
+                    <input type="text" id="task-title" required>
+                </div>
+                <div class="form-group">
+                    <label for="task-desc">Descrição</label>
+                    <textarea id="task-desc" rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task-priority">Prioridade</label>
+                        <select id="task-priority">
+                            <option value="25">Baixa</option>
+                            <option value="50">Média</option>
+                            <option value="75" selected>Alta</option>
+                            <option value="100">Crítica</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="task-auto-exec"> Auto-execução
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group" id="exec-command-group" style="display: none;">
+                    <label for="exec-command">Comando de execução</label>
+                    <input type="text" id="exec-command" placeholder="Ex: pesquisar: termo, exec: comando, notify: mensagem">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="history-modal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>Histórico de Tarefas</h3>
+                <span class="close" onclick="closeHistoryModal()">&times;</span>
+            </div>
+            <div id="history-content">
+                <div class="loading">Carregando histórico...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
